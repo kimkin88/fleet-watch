@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/audit/sample",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "functions": {
