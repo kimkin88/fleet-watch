@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/audit/sample",
+      "schedule": "* * * * *"
+    }
+  ],
+  "functions": {
+    "app/api/bods/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/bods/health/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/audit/sample/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}

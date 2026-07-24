@@ -1,0 +1,9 @@
+<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fleet Watch">
+  <!-- live tracking rings -->
+  <circle cx="20" cy="18" r="17" fill="none" stroke="#ff3355" stroke-width="1.4" opacity=".26"/>
+  <circle cx="20" cy="18" r="12.4" fill="none" stroke="#ff3355" stroke-width="1.4" opacity=".5"/>
+  <!-- location pin with transparent centre (moving vehicle, tracked) -->
+  <path fill="#ff3355" fill-rule="evenodd" d="M20 6c-6 0-10.5 4.5-10.5 10.5C9.5 24 20 33 20 33s10.5-9 10.5-16.5C30.5 10.5 26 6 20 6Zm4.2 10a4.2 4.2 0 1 0-8.4 0 4.2 4.2 0 0 0 8.4 0Z"/>
+  <!-- motion trace beneath -->
+  <path d="M8 36h9M20 36h4M27 36h5" stroke="#ff3355" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+</svg>

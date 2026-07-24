@@ -1,0 +1,27 @@
+{
+  "name": "fleet-watch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fleet Watch: live campaign bus tracking (TfL + BODS) — Next.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dependencies": {
+    "@radix-ui/react-scroll-area": "^1.2.17",
+    "next": "^15.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}
