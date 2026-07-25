@@ -17,7 +17,7 @@ Verify:
 - `https://<url>/api/audit` → `"storage": "supabase"` when configured
 - Pages: `/`, `/dashboard`, `/network-insights`, `/api-proof`, `/campaign-audit`
 
-**Cron:** `vercel.json` schedules `/api/audit/sample` every minute (Pro). On Hobby, use an external minute cron with `Authorization: Bearer <CRON_SECRET>`.
+**Cron:** `vercel.json` schedules `/api/audit/sample` once daily (`0 0 * * *`, Hobby-safe). Use **Renew now** on `/campaign-audit` (or `POST /api/audit/sample`) for an immediate sample. Minute cadence needs Pro or an external cron with `Authorization: Bearer <CRON_SECRET>`.
 
 ## Local
 

@@ -3,7 +3,8 @@
  * Supabase-backed campaign audit.
  * Same behaviour as api/_audit.js, but durable storage via Postgres (works on Vercel).
  * Sampler runs via:
- *   - Vercel Cron → GET/POST /api/audit/sample (daily on Hobby; every minute needs Pro)
+ *   - Vercel Cron → GET /api/audit/sample (daily on Hobby; every minute needs Pro)
+ *   - Manual renew → POST /api/audit/sample (Audit page “Renew now”)
  *   - start() interval when used from server.js / Render with Supabase configured
  */
 import { fetchBodsFeed, normalise } from "./siri";

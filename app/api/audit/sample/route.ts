@@ -10,7 +10,9 @@ function authorized(request: Request) {
   const header = request.headers.get("authorization") || "";
   if (header === `Bearer ${secret}`) return true;
   const q = new URL(request.url).searchParams.get("secret") || "";
-  return q === secret;
+  if (q === secret) return true;
+  // Manual renew from the Audit UI (POST). Vercel Cron uses GET + Bearer.
+  return request.method === "POST";
 }
 
 async function run(request: Request) {
