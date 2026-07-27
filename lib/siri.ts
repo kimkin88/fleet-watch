@@ -2,6 +2,8 @@
 
 const MAX_BODS_BYTES = 80 * 1024 * 1024;
 const BODS_URL = "https://data.bus-data.dft.gov.uk/api/v1/datafeed/";
+/** DfT now rejects bare datafeed calls; a bounding box is required. */
+const DEFAULT_BBOX = "-5.5,49.8,1.8,55.8"; // England-ish coverage
 
 export type BodsVehicle = {
   registration: string;
@@ -32,6 +34,11 @@ function bodsKey() {
     if (key) return { key, source: name };
   }
   return { key: "", source: "missing" as const };
+}
+
+function boundingBox() {
+  const fromEnv = (process.env.BODS_BOUNDING_BOX || "").trim();
+  return fromEnv || DEFAULT_BBOX;
 }
 
 function tag(xml: string, name: string) {
@@ -88,18 +95,16 @@ export function parseSiriVm(xml: string): BodsVehicle[] {
   return vehicles;
 }
 
-const caches = new Map<string, { at: number; vehicles: BodsVehicle[] }>();
+let cache: { at: number; bbox: string; vehicles: BodsVehicle[] | null } = {
+  at: 0,
+  bbox: "",
+  vehicles: null,
+};
 
-function cacheKey(vehicleRefs?: string[]) {
-  return vehicleRefs?.length ? `vehicleRef:${vehicleRefs.join(",")}` : "all";
-}
-
-function buildBodsUrl(key: string, vehicleRefs?: string[]) {
+function buildBodsUrl(key: string, bbox: string) {
   const url = new URL(BODS_URL);
   url.searchParams.set("api_key", key);
-  for (const ref of vehicleRefs || []) {
-    url.searchParams.append("vehicleRef", ref);
-  }
+  url.searchParams.set("boundingBox", bbox);
   return url;
 }
 
@@ -119,25 +124,28 @@ async function readResponseText(res: Response) {
   return Buffer.concat(parts.map((p) => Buffer.from(p))).toString("utf8");
 }
 
-export async function fetchBodsFeed(vehicleRefs?: string[]): Promise<BodsVehicle[]> {
-  const refs = [...new Set((vehicleRefs || []).map(normalise).filter(Boolean))].sort();
-  const keyId = cacheKey(refs);
-  const cached = caches.get(keyId);
-  if (cached && Date.now() - cached.at < 20000) return cached.vehicles;
+export async function fetchBodsFeed(): Promise<BodsVehicle[]> {
+  const bbox = boundingBox();
+  if (Date.now() - cache.at < 20000 && cache.vehicles && cache.bbox === bbox) {
+    return cache.vehicles;
+  }
   const { key, source } = bodsKey();
   if (!key) {
     throw new Error("BODS API key is not set — add BODS_API_KEY to the server environment and restart");
   }
 
-  const url = buildBodsUrl(key, refs);
-  const res = await fetch(url, {
-    headers: {
-      accept: "application/xml, text/xml;q=0.9, */*;q=0.1",
-      "x-api-key": key,
-    },
-    signal: AbortSignal.timeout(45000),
-    cache: "no-store",
-  });
+  const url = buildBodsUrl(key, bbox);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { accept: "application/xml, text/xml;q=0.9, */*;q=0.1" },
+      signal: AbortSignal.timeout(45000),
+      cache: "no-store",
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`BODS upstream request failed: ${msg}`);
+  }
 
   if (!res.ok) {
     let detail = "";
@@ -149,14 +157,13 @@ export async function fetchBodsFeed(vehicleRefs?: string[]): Promise<BodsVehicle
     }
     const hint =
       res.status === 401 || res.status === 403
-        ? ` — DfT rejected the BODS key from ${source}. Use the API key from data.bus-data.dft.gov.uk account settings and pass it as ?api_key=...`
+        ? ` — DfT rejected the BODS request from ${source}. Confirm BODS_API_KEY and that boundingBox is set (BODS now requires query params).`
         : "";
-    const scope = refs.length ? ` for vehicleRef=${refs.join(",")}` : "";
-    throw new Error(`BODS returned HTTP ${res.status}${scope}${hint}${detail}`);
+    throw new Error(`BODS returned HTTP ${res.status}${hint}${detail}`);
   }
 
   const xml = await readResponseText(res);
   const vehicles = parseSiriVm(xml);
-  caches.set(keyId, { at: Date.now(), vehicles });
+  cache = { at: Date.now(), bbox, vehicles };
   return vehicles;
 }

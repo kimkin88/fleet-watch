@@ -11,20 +11,13 @@ export async function GET(request: Request) {
       .map(normalise)
       .filter(Boolean);
     const requestedSet = new Set(requested);
-    let all = requested.length ? await fetchBodsFeed(requested) : await fetchBodsFeed();
-    let vehicles = requested.length
+    const all = await fetchBodsFeed();
+    const vehicles = requested.length
       ? all.filter(
           (v) =>
             requestedSet.has(normalise(v.registration)) || requestedSet.has(normalise(v.vehicleRef)),
         )
       : [];
-    if (requested.length && !vehicles.length) {
-      all = await fetchBodsFeed();
-      vehicles = all.filter(
-        (v) =>
-          requestedSet.has(normalise(v.registration)) || requestedSet.has(normalise(v.vehicleRef)),
-      );
-    }
     return Response.json(
       {
         ok: true,
