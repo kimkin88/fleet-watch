@@ -1,9 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import LegacyHtmlShell from "../LegacyHtmlShell";
+import { mountApiProofScrolls, unmountApiProofScrolls } from "../mountVehicleListScroll";
 import { css, html, script } from "./ApiProofPageData";
 
 export default function ApiProofPage() {
+  useEffect(() => () => unmountApiProofScrolls(), []);
+
   return (
     <LegacyHtmlShell
       css={css}
@@ -11,6 +15,7 @@ export default function ApiProofPage() {
       script={script}
       maplibre={true}
       chartjs={false}
+      onBeforeScript={mountApiProofScrolls}
     />
   );
 }
