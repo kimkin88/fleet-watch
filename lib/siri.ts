@@ -1,6 +1,7 @@
 /** BODS SIRI-VM fetch + parse (server-only). */
 
 const MAX_BODS_BYTES = 80 * 1024 * 1024;
+const BODS_URL = "https://data.bus-data.dft.gov.uk/api/v1/datafeed/";
 
 export type BodsVehicle = {
   registration: string;
@@ -21,8 +22,16 @@ export type BodsVehicle = {
 };
 
 function bodsKey() {
-  const fromEnv = (process.env.BODS_API_KEY || "").trim();
-  return { key: fromEnv, source: fromEnv ? ("env" as const) : ("missing" as const) };
+  const candidates = [
+    ["BODS_API_KEY", process.env.BODS_API_KEY],
+    ["BODS_KEY", process.env.BODS_KEY],
+    ["BODS_APIKEY", process.env.BODS_APIKEY],
+  ] as const;
+  for (const [name, value] of candidates) {
+    const key = (value || "").trim();
+    if (key) return { key, source: name };
+  }
+  return { key: "", source: "missing" as const };
 }
 
 function tag(xml: string, name: string) {
@@ -79,16 +88,53 @@ export function parseSiriVm(xml: string): BodsVehicle[] {
   return vehicles;
 }
 
-let cache: { at: number; vehicles: BodsVehicle[] | null } = { at: 0, vehicles: null };
+const caches = new Map<string, { at: number; vehicles: BodsVehicle[] }>();
 
-export async function fetchBodsFeed(): Promise<BodsVehicle[]> {
-  if (Date.now() - cache.at < 20000 && cache.vehicles) return cache.vehicles;
-  const { key } = bodsKey();
-  if (!key) throw new Error("BODS_API_KEY is not set — add it to .env.local and restart");
+function cacheKey(vehicleRefs?: string[]) {
+  return vehicleRefs?.length ? `vehicleRef:${vehicleRefs.join(",")}` : "all";
+}
 
-  const url = `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${encodeURIComponent(key)}`;
+function buildBodsUrl(key: string, vehicleRefs?: string[]) {
+  const url = new URL(BODS_URL);
+  url.searchParams.set("api_key", key);
+  for (const ref of vehicleRefs || []) {
+    url.searchParams.append("vehicleRef", ref);
+  }
+  return url;
+}
+
+async function readResponseText(res: Response) {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("BODS response had no body");
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    size += value.length;
+    if (size > MAX_BODS_BYTES) throw new Error("BODS response exceeded 80MB size cap");
+    parts.push(value);
+  }
+  return Buffer.concat(parts.map((p) => Buffer.from(p))).toString("utf8");
+}
+
+export async function fetchBodsFeed(vehicleRefs?: string[]): Promise<BodsVehicle[]> {
+  const refs = [...new Set((vehicleRefs || []).map(normalise).filter(Boolean))].sort();
+  const keyId = cacheKey(refs);
+  const cached = caches.get(keyId);
+  if (cached && Date.now() - cached.at < 20000) return cached.vehicles;
+  const { key, source } = bodsKey();
+  if (!key) {
+    throw new Error("BODS API key is not set — add BODS_API_KEY to the server environment and restart");
+  }
+
+  const url = buildBodsUrl(key, refs);
   const res = await fetch(url, {
-    headers: { accept: "application/xml,text/xml" },
+    headers: {
+      accept: "application/xml, text/xml;q=0.9, */*;q=0.1",
+      "x-api-key": key,
+    },
     signal: AbortSignal.timeout(45000),
     cache: "no-store",
   });
@@ -103,25 +149,14 @@ export async function fetchBodsFeed(): Promise<BodsVehicle[]> {
     }
     const hint =
       res.status === 401 || res.status === 403
-        ? " — DfT rejected this BODS_API_KEY. Copy a fresh key from data.bus-data.dft.gov.uk → Account settings into .env.local (not the old shared key) and restart"
+        ? ` — DfT rejected the BODS key from ${source}. Use the API key from data.bus-data.dft.gov.uk account settings and pass it as ?api_key=...`
         : "";
-    throw new Error(`BODS returned HTTP ${res.status}${hint}${detail}`);
+    const scope = refs.length ? ` for vehicleRef=${refs.join(",")}` : "";
+    throw new Error(`BODS returned HTTP ${res.status}${scope}${hint}${detail}`);
   }
 
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("BODS response had no body");
-  const parts: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-    size += value.length;
-    if (size > MAX_BODS_BYTES) throw new Error("BODS response exceeded 80MB size cap");
-    parts.push(value);
-  }
-  const xml = Buffer.concat(parts.map((p) => Buffer.from(p))).toString("utf8");
+  const xml = await readResponseText(res);
   const vehicles = parseSiriVm(xml);
-  cache = { at: Date.now(), vehicles };
+  caches.set(keyId, { at: Date.now(), vehicles });
   return vehicles;
 }
