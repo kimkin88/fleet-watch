@@ -329,13 +329,14 @@ export async function fetchBodsFeed(): Promise<BodsVehicle[]> {
   }
   if (inflight) return inflight;
 
-  inflight = (async () => {
+  inflight = (async (): Promise<BodsVehicle[]> => {
     try {
       return await fetchBodsFeedUncached();
     } catch (err) {
-      if (cache.vehicles?.length && cache.bbox === bbox && Date.now() - cache.at < STALE_MAX_MS) {
+      const stale = cache.vehicles;
+      if (stale?.length && cache.bbox === bbox && Date.now() - cache.at < STALE_MAX_MS) {
         cache = { ...cache, stale: true };
-        return cache.vehicles;
+        return stale;
       }
       throw err;
     } finally {
