@@ -6,7 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { fetchBodsFeed, normalise } from "./siri";
+import { fetchBodsFeed, matchBodsToRegistrations, normalise } from "./siri";
 
 const DATA_FILE = path.join(process.cwd(), "audit-data.json");
 const TFL_KEY = (process.env.TFL_API_KEY || "").trim() || "37ac7c834d654d80b34696ee7366f32e";
@@ -239,11 +239,11 @@ async function sample() {
   try {
     const feed = await fetchBodsFeed();
     const byReg = new Map();
-    feed.forEach((v) => {
-      const r1 = normalise(v.registration),
-        r2 = normalise(v.vehicleRef);
-      if (r1 && regs.has(r1) && !byReg.has(r1)) byReg.set(r1, v);
-      else if (r2 && regs.has(r2) && !byReg.has(r2)) byReg.set(r2, v);
+    const { vehicles: matched } = matchBodsToRegistrations(feed, [...regs]);
+    matched.forEach((v) => {
+      const reg = v.matchedRegistration;
+      if (byReg.has(reg)) return;
+      byReg.set(reg, v);
     });
     byReg.forEach((v, reg) => {
       seen.add(reg);

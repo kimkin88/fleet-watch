@@ -7,7 +7,7 @@
  *   - Manual renew → POST /api/audit/sample (Audit page “Renew now”)
  *   - start() interval when used from server.js / Render with Supabase configured
  */
-import { fetchBodsFeed, normalise } from "./siri";
+import { fetchBodsFeed, matchBodsToRegistrations, normalise } from "./siri";
 import * as sb from "./supabase";
 
 const TFL_KEY = (process.env.TFL_API_KEY || "").trim() || "37ac7c834d654d80b34696ee7366f32e";
@@ -280,12 +280,10 @@ async function sample() {
 
   try {
     const feed = await fetchBodsFeed();
-    for (const v of feed) {
-      const r1 = normalise(v.registration), r2 = normalise(v.vehicleRef);
-      let reg = null;
-      if (r1 && regs.has(r1) && !seen.has(r1)) reg = r1;
-      else if (r2 && regs.has(r2) && !seen.has(r2)) reg = r2;
-      if (!reg) continue;
+    const { vehicles: matched } = matchBodsToRegistrations(feed, [...regs]);
+    for (const v of matched) {
+      const reg = v.matchedRegistration;
+      if (seen.has(reg)) continue;
       seen.add(reg);
       seenBods++;
       const pos = { lat: v.latitude, lng: v.longitude };

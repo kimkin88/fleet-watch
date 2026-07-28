@@ -1,4 +1,4 @@
-import { fetchBodsFeed } from "@/lib/siri";
+import { bodsFeedMeta, fetchBodsFeed } from "@/lib/siri";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -6,8 +6,16 @@ export const maxDuration = 60;
 export async function GET() {
   try {
     const all = await fetchBodsFeed();
+    const meta = bodsFeedMeta();
     return Response.json(
-      { ok: true, connected: true, totalUpstream: all.length, checkedAt: new Date().toISOString() },
+      {
+        ok: true,
+        connected: true,
+        totalUpstream: all.length,
+        stale: meta.stale,
+        bbox: meta.bbox,
+        checkedAt: new Date().toISOString(),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
