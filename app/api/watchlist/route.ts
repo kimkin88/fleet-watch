@@ -7,6 +7,89 @@ function cleanBrand(value: unknown) {
   return String(value || "").trim().slice(0, 60);
 }
 
+type WatchlistRow = { id: number; name: string; created_at: string };
+type VehicleRow = {
+  id: number;
+  watchlist_id: number;
+  registration: string;
+  label: string;
+  operator: string;
+  vehicle_ref: string;
+  source: string;
+  brand: string;
+};
+
+function workspaceSlug(request: Request) {
+  const slug = (new URL(request.url).searchParams.get("workspace") || "").trim().toLowerCase();
+  if (!slug) return "";
+  if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) return null;
+  return slug;
+}
+
+function workspaceListName(slug: string) {
+  return `workspace:${slug}`;
+}
+
+function mapVehicle(row: VehicleRow) {
+  return {
+    id: row.id,
+    watchlistId: row.watchlist_id,
+    registration: row.registration,
+    label: row.label,
+    operator: row.operator,
+    vehicleRef: row.vehicle_ref,
+    source: row.source,
+    brand: row.brand,
+  };
+}
+
+function cleanVehicles(raw: unknown) {
+  const list = Array.isArray(raw) ? raw : [];
+  const seen = new Set<string>();
+  const vehicles: Array<{ registration: string; label: string; operator: string; brand: string }> = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const registration = normalise(row.registration);
+    if (!registration || seen.has(registration)) continue;
+    seen.add(registration);
+    vehicles.push({
+      registration,
+      label: String(row.label || row.brand || "").trim().slice(0, 120),
+      operator: String(row.operator || "").trim().slice(0, 80),
+      brand: cleanBrand(row.brand),
+    });
+    if (vehicles.length >= 500) break;
+  }
+  return vehicles;
+}
+
+async function findWorkspace(slug: string) {
+  const lists = (await sb.rest.get("watchlists", {
+    select: "id,name,created_at",
+    name: `eq.${workspaceListName(slug)}`,
+    order: "id.asc",
+    limit: "1",
+  })) as WatchlistRow[];
+  return lists?.[0] || null;
+}
+
+async function ensureWorkspace(slug: string) {
+  const existing = await findWorkspace(slug);
+  if (existing) return existing;
+  const created = (await sb.rest.post("watchlists", { name: workspaceListName(slug) })) as WatchlistRow[];
+  return created?.[0] || null;
+}
+
+async function workspaceVehicles(watchlistId: number) {
+  const rows = (await sb.rest.get("watched_vehicles", {
+    select: "id,watchlist_id,registration,label,operator,vehicle_ref,source,brand",
+    watchlist_id: `eq.${watchlistId}`,
+    order: "id.asc",
+  })) as VehicleRow[];
+  return (rows || []).map(mapVehicle);
+}
+
 async function listAll() {
   const [lists, vehicles] = await Promise.all([
     sb.rest.get("watchlists", { select: "id,name,created_at", order: "id.desc" }) as Promise<
@@ -44,15 +127,73 @@ async function listAll() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!sb.configured()) {
     return Response.json(
       { watchlists: [], vehicles: [], storage: "unavailable", error: "Supabase is not configured" },
       { status: 503 },
     );
   }
+  const slug = workspaceSlug(request);
+  if (slug === null) return Response.json({ error: "Invalid workspace" }, { status: 400 });
   try {
+    if (slug) {
+      const watchlist = await findWorkspace(slug);
+      const vehicles = watchlist ? await workspaceVehicles(watchlist.id) : [];
+      return Response.json(
+        {
+          workspace: slug,
+          watchlist: watchlist
+            ? { id: watchlist.id, name: watchlist.name, createdAt: watchlist.created_at }
+            : null,
+          vehicles,
+          storage: "supabase",
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return Response.json(await listAll(), { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return Response.json({ error: String(err instanceof Error ? err.message : err) }, { status: 502 });
+  }
+}
+
+export async function PUT(request: Request) {
+  if (!sb.configured()) {
+    return Response.json(
+      { vehicles: [], storage: "unavailable", error: "Supabase is not configured" },
+      { status: 503 },
+    );
+  }
+  const slug = workspaceSlug(request);
+  if (!slug) return Response.json({ error: slug === null ? "Invalid workspace" : "A workspace is required" }, { status: 400 });
+  try {
+    const body = await request.json().catch(() => ({}));
+    const vehicles = cleanVehicles((body as { vehicles?: unknown }).vehicles);
+    const watchlist = await ensureWorkspace(slug);
+    if (!watchlist) return Response.json({ error: "Could not create workspace" }, { status: 500 });
+    await sb.rest.del("watched_vehicles", { watchlist_id: `eq.${watchlist.id}` });
+    if (vehicles.length) {
+      await sb.rest.post(
+        "watched_vehicles",
+        vehicles.map((item) => ({
+          watchlist_id: watchlist.id,
+          registration: item.registration,
+          label: item.label,
+          operator: item.operator,
+          vehicle_ref: "",
+          source: "csv",
+          brand: item.brand,
+        })),
+        "return=minimal",
+      );
+    }
+    return Response.json({
+      workspace: slug,
+      watchlist: { id: watchlist.id, name: watchlist.name, createdAt: watchlist.created_at },
+      vehicles,
+      storage: "supabase",
+    });
   } catch (err) {
     return Response.json({ error: String(err instanceof Error ? err.message : err) }, { status: 502 });
   }

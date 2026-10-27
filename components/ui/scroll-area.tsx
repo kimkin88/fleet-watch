@@ -14,11 +14,24 @@ export const ScrollArea = forwardRef<
     viewportClassName?: string;
     viewportStyle?: React.CSSProperties;
     viewportRef?: Ref<HTMLDivElement>;
+    /** Which scrollbars to mount. Horizontal-only bars desync nested thumbs — default vertical. */
+    scrollbars?: "vertical" | "horizontal" | "both";
   }
 >(function ScrollArea(
-  { className, children, viewportClassName, viewportStyle, viewportRef, ...props },
+  {
+    className,
+    children,
+    viewportClassName,
+    viewportStyle,
+    viewportRef,
+    scrollbars = "vertical",
+    ...props
+  },
   ref,
 ) {
+  const showVertical = scrollbars === "vertical" || scrollbars === "both";
+  const showHorizontal = scrollbars === "horizontal" || scrollbars === "both";
+
   return (
     <ScrollAreaPrimitive.Root
       ref={ref}
@@ -32,9 +45,11 @@ export const ScrollArea = forwardRef<
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar orientation="vertical" />
-      <ScrollBar orientation="horizontal" />
-      <ScrollAreaPrimitive.Corner className="fw-scroll-area__corner" />
+      {showVertical ? <ScrollBar orientation="vertical" /> : null}
+      {showHorizontal ? <ScrollBar orientation="horizontal" /> : null}
+      {showVertical && showHorizontal ? (
+        <ScrollAreaPrimitive.Corner className="fw-scroll-area__corner" />
+      ) : null}
     </ScrollAreaPrimitive.Root>
   );
 });
@@ -52,7 +67,8 @@ export const ScrollBar = forwardRef<
         .join(" ")}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="fw-scroll-area__thumb" />
+      {/* forceMount: keep thumb in DOM so type="always" tracks stay usable after size measure */}
+      <ScrollAreaPrimitive.ScrollAreaThumb forceMount className="fw-scroll-area__thumb" />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   );
 });

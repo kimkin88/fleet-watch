@@ -67,10 +67,10 @@
   background: #0a0a0a;
 }
 
-/* Always allow vertical scroll — Radix may set overflow-y:hidden before measure */
+/* Keep viewport scrollable — Radix can leave overflow-y:hidden until measure */
 .fw-app-scroll > [data-radix-scroll-area-viewport] {
   overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
 }
 
 .fw-app-scroll__content {
@@ -89,86 +89,33 @@ html.fw-radix-scroll body {
   background: #0a0a0a;
 }
 
-/* Dashboard watchlist — nested Radix scroll inside sidebar */
-.fw-vehicle-list-scroll {
-  --fw-scroll-size: 8px;
-  --fw-scroll-thumb: rgba(242, 239, 233, 0.22);
-  --fw-scroll-thumb-hover: #ff3355;
-  --fw-scroll-track: rgba(242, 239, 233, 0.04);
-  position: absolute !important;
-  inset: 0;
-  height: auto !important;
-  min-height: 0;
-}
-
-.fw-vehicle-list-scroll > [data-radix-scroll-area-viewport] {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
-.fw-vehicle-list-scroll .fw-scroll-area__scrollbar--vertical {
-  border-left: 1px solid rgba(242, 239, 233, 0.14);
-}
-
-/* API proof vehicle inventory */
-.fw-veh-inventory-scroll {
-  --fw-scroll-size: 8px;
-  --fw-scroll-thumb: rgba(242, 239, 233, 0.22);
-  --fw-scroll-thumb-hover: #ff3355;
-  --fw-scroll-track: rgba(242, 239, 233, 0.04);
-  position: absolute !important;
-  inset: 0;
-  height: auto !important;
-  min-height: 0;
-}
-
-.fw-veh-inventory-scroll > [data-radix-scroll-area-viewport] {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
-.fw-veh-inventory-scroll .fw-scroll-area__scrollbar--vertical {
-  border-left: 1px solid rgba(242, 239, 233, 0.14);
-}
-
-/* API proof endpoint directory */
-.fw-endpoint-scroll {
-  --fw-scroll-size: 8px;
-  --fw-scroll-thumb: rgba(242, 239, 233, 0.22);
-  --fw-scroll-thumb-hover: #ff3355;
-  --fw-scroll-track: rgba(242, 239, 233, 0.04);
-  position: absolute !important;
-  inset: 0;
-  height: auto !important;
-  min-height: 0;
-}
-
-.fw-endpoint-scroll > [data-radix-scroll-area-viewport] {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
-.fw-endpoint-scroll .fw-scroll-area__scrollbar--vertical {
-  border-left: 1px solid rgba(242, 239, 233, 0.14);
-}
-
-/* API proof bus lookup raw JSON */
+/* Nested panel scrolls (dashboard / api-proof) — vertical only, contain wheel */
+.fw-vehicle-list-scroll,
+.fw-veh-inventory-scroll,
+.fw-endpoint-scroll,
 .fw-lookup-raw-scroll {
   --fw-scroll-size: 8px;
-  --fw-scroll-thumb: rgba(242, 239, 233, 0.22);
+  --fw-scroll-thumb: rgba(242, 239, 233, 0.35);
   --fw-scroll-thumb-hover: #ff3355;
-  --fw-scroll-track: rgba(242, 239, 233, 0.04);
+  --fw-scroll-track: rgba(242, 239, 233, 0.08);
   position: absolute !important;
   inset: 0;
   height: auto !important;
   min-height: 0;
 }
 
+.fw-vehicle-list-scroll > [data-radix-scroll-area-viewport],
+.fw-veh-inventory-scroll > [data-radix-scroll-area-viewport],
+.fw-endpoint-scroll > [data-radix-scroll-area-viewport],
 .fw-lookup-raw-scroll > [data-radix-scroll-area-viewport] {
   overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
+  overscroll-behavior: contain;
 }
 
+.fw-vehicle-list-scroll .fw-scroll-area__scrollbar--vertical,
+.fw-veh-inventory-scroll .fw-scroll-area__scrollbar--vertical,
+.fw-endpoint-scroll .fw-scroll-area__scrollbar--vertical,
 .fw-lookup-raw-scroll .fw-scroll-area__scrollbar--vertical {
   border-left: 1px solid rgba(242, 239, 233, 0.14);
 }
