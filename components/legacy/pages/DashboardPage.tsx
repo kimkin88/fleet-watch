@@ -66,8 +66,8 @@ export default function DashboardPage({ variant = "main" }: { variant?: Dashboar
       onBeforeScript={() => {
         const pageWindow = window as Window & { __FW_STORE?: string; __FW_REMOTE?: string };
         pageWindow.__FW_STORE = storeKey;
-        pageWindow.__FW_REMOTE =
-          variant === "alt" ? "/api/watchlist?workspace=dashboard-2" : "/api/watchlist?workspace=dashboard";
+        // Dashboard 1 stays in this browser. Only Dashboard 2 is the shared Supabase list.
+        pageWindow.__FW_REMOTE = variant === "alt" ? "/api/watchlist?workspace=dashboard-2" : "";
         mountVehicleListScroll();
       }}
     />
